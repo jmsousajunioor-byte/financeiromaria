@@ -5,6 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingDown, TrendingUp, Wallet, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import FilterBar, { FilterState } from '@/components/dashboard/FilterBar';
+import PieChartComponent from '@/components/dashboard/PieChartComponent';
+import BarChartComponent from '@/components/dashboard/BarChartComponent';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -15,24 +18,108 @@ const Dashboard = () => {
     balance: 0,
   });
   const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [cards, setCards] = useState<any[]>([]);
+  const [banks, setBanks] = useState<any[]>([]);
+  const [pieChartData, setPieChartData] = useState<any[]>([]);
+  const [barChartData, setBarChartData] = useState<any[]>([]);
+  const [filters, setFilters] = useState<FilterState>({ dateRange: 'month' });
+
+  useEffect(() => {
+    if (user) {
+      loadAllData();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user) {
       loadDashboardData();
     }
-  }, [user]);
+  }, [user, filters]);
+
+  const loadAllData = async () => {
+    // Load categories
+    const { data: categoriesData } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('user_id', user?.id);
+    if (categoriesData) setCategories(categoriesData);
+
+    // Load cards
+    const { data: cardsData } = await supabase
+      .from('cards')
+      .select('*')
+      .eq('user_id', user?.id);
+    if (cardsData) setCards(cardsData);
+
+    // Load banks
+    const { data: banksData } = await supabase
+      .from('banks')
+      .select('*')
+      .eq('user_id', user?.id);
+    if (banksData) setBanks(banksData);
+  };
+
+  const getDateRange = () => {
+    const today = new Date();
+    let startDate: Date;
+
+    switch (filters.dateRange) {
+      case 'today':
+        startDate = new Date(today.setHours(0, 0, 0, 0));
+        break;
+      case 'week':
+        startDate = new Date(today);
+        startDate.setDate(today.getDate() - 7);
+        break;
+      case 'month':
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        break;
+      case 'last30':
+        startDate = new Date(today);
+        startDate.setDate(today.getDate() - 30);
+        break;
+      case 'custom':
+        if (filters.startDate && filters.endDate) {
+          return {
+            start: filters.startDate,
+            end: filters.endDate,
+          };
+        }
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        break;
+      default:
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+    }
+
+    return {
+      start: startDate.toISOString().split('T')[0],
+      end: new Date().toISOString().split('T')[0],
+    };
+  };
 
   const loadDashboardData = async () => {
-    // Load transactions
-    const { data: transactions } = await supabase
+    const dateRange = getDateRange();
+    
+    let query = supabase
       .from('transactions')
-      .select('*')
+      .select('*, categories(*)')
       .eq('user_id', user?.id)
-      .order('transaction_date', { ascending: false })
-      .limit(5);
+      .gte('transaction_date', dateRange.start)
+      .lte('transaction_date', dateRange.end);
+
+    // Apply filters
+    if (filters.categoryId) {
+      query = query.eq('category_id', filters.categoryId);
+    }
+    if (filters.sourceId) {
+      query = query.eq('source_id', filters.sourceId).eq('source_type', filters.sourceType);
+    }
+
+    const { data: transactions } = await query.order('transaction_date', { ascending: false });
 
     if (transactions) {
-      setRecentTransactions(transactions);
+      setRecentTransactions(transactions.slice(0, 5));
 
       // Calculate stats
       const expenses = transactions
@@ -48,7 +135,56 @@ const Dashboard = () => {
         totalIncome: income,
         balance: income - expenses,
       });
+
+      // Prepare pie chart data (expenses by category)
+      const categoryMap = new Map<string, { value: number; color: string; name: string }>();
+      transactions
+        .filter(t => t.type === 'expense' && t.categories)
+        .forEach(t => {
+          const catName = t.categories.name;
+          const catColor = t.categories.color || '#8b5cf6';
+          const existing = categoryMap.get(catName);
+          if (existing) {
+            existing.value += Number(t.amount);
+          } else {
+            categoryMap.set(catName, {
+              name: catName,
+              value: Number(t.amount),
+              color: catColor,
+            });
+          }
+        });
+
+      setPieChartData(Array.from(categoryMap.values()));
+
+      // Prepare bar chart data (last 6 months or days depending on filter)
+      const isDaily = filters.dateRange === 'week' || filters.dateRange === 'today';
+      const barData = prepareBarChartData(transactions, isDaily);
+      setBarChartData(barData);
     }
+  };
+
+  const prepareBarChartData = (transactions: any[], isDaily: boolean) => {
+    const dataMap = new Map<string, { despesas: number; receitas: number }>();
+
+    transactions.forEach(t => {
+      const date = new Date(t.transaction_date);
+      const key = isDaily
+        ? date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+        : date.toLocaleDateString('pt-BR', { month: 'short' });
+
+      const existing = dataMap.get(key) || { despesas: 0, receitas: 0 };
+      if (t.type === 'expense') {
+        existing.despesas += Number(t.amount);
+      } else if (t.type === 'income') {
+        existing.receitas += Number(t.amount);
+      }
+      dataMap.set(key, existing);
+    });
+
+    return Array.from(dataMap.entries())
+      .map(([name, values]) => ({ name, ...values }))
+      .slice(-10);
   };
 
   const formatCurrency = (value: number) => {
@@ -83,6 +219,14 @@ const Dashboard = () => {
           Nova Transação
         </Button>
       </div>
+
+      {/* Filters */}
+      <FilterBar
+        onFilterChange={setFilters}
+        categories={categories}
+        cards={cards}
+        banks={banks}
+      />
 
       {/* Stats Cards */}
       <div className="grid gap-6 md:grid-cols-3">
@@ -121,6 +265,12 @@ const Dashboard = () => {
             <div className="text-3xl font-bold">{formatCurrency(stats.balance)}</div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <PieChartComponent data={pieChartData} />
+        <BarChartComponent data={barChartData} />
       </div>
 
       {/* Recent Transactions */}
@@ -163,6 +313,7 @@ const Dashboard = () => {
                       <p className="font-medium">{transaction.description || 'Sem descrição'}</p>
                       <p className="text-sm text-muted-foreground">
                         {formatDate(transaction.transaction_date)}
+                        {transaction.categories && ` • ${transaction.categories.icon} ${transaction.categories.name}`}
                       </p>
                     </div>
                   </div>
@@ -170,7 +321,7 @@ const Dashboard = () => {
                     transaction.type === 'expense' ? 'text-expense' : 'text-income'
                   }`}>
                     {transaction.type === 'expense' ? '-' : '+'}
-                    {formatCurrency(parseFloat(transaction.amount))}
+                    {formatCurrency(Number(transaction.amount))}
                   </div>
                 </div>
               ))}
