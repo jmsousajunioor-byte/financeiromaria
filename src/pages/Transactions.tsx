@@ -58,7 +58,42 @@ const Transactions = () => {
       .eq('user_id', user?.id)
       .eq('type', 'expense');
     
-    if (data) setCategories(data);
+    if (data) {
+      // If no categories, create default ones
+      if (data.length === 0) {
+        await createDefaultCategories();
+        // Reload categories after creating defaults
+        const { data: newData } = await supabase
+          .from('categories')
+          .select('*')
+          .eq('user_id', user?.id)
+          .eq('type', 'expense');
+        if (newData) setCategories(newData);
+      } else {
+        setCategories(data);
+      }
+    }
+  };
+
+  const createDefaultCategories = async () => {
+    const defaultCategories = [
+      { name: 'Alimentação', icon: '🍔', color: '#EF4444', type: 'expense' },
+      { name: 'Transporte', icon: '🚗', color: '#F59E0B', type: 'expense' },
+      { name: 'Moradia', icon: '🏠', color: '#8B5CF6', type: 'expense' },
+      { name: 'Saúde', icon: '💊', color: '#EC4899', type: 'expense' },
+      { name: 'Educação', icon: '📚', color: '#3B82F6', type: 'expense' },
+      { name: 'Lazer', icon: '🎮', color: '#10B981', type: 'expense' },
+      { name: 'Compras', icon: '🛍️', color: '#F97316', type: 'expense' },
+      { name: 'Outros', icon: '📦', color: '#6B7280', type: 'expense' },
+    ];
+
+    await supabase.from('categories').insert(
+      defaultCategories.map(cat => ({
+        ...cat,
+        user_id: user?.id,
+        is_default: true,
+      }))
+    );
   };
 
   const loadTransactions = async () => {
