@@ -10,7 +10,7 @@ on:
       - .github/workflows/supabase-migrations.yml
 
 jobs:
-  db-push:
+  db-pusha:
     name: Apply migrations to Supabase
     runs-on: ubuntu-latest
     concurrency:
