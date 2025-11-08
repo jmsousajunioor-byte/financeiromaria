@@ -25,7 +25,10 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 <span className="sr-only">Abrir menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-72 p-0">
+            <SheetContent
+              side="left"
+              className="w-72 p-0 border-none bg-sidebar text-sidebar-foreground [&>button]:hidden"
+            >
               <Sidebar isFloating={false} onNavigate={() => setIsMobileMenuOpen(false)} />
             </SheetContent>
           </Sheet>
@@ -44,3 +47,4 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
 };
 
 export default DashboardLayout;
+

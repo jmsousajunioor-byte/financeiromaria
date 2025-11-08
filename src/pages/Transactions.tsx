@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { Plus, TrendingDown, TrendingUp } from 'lucide-react';
 import { z } from 'zod';
@@ -23,13 +24,16 @@ const transactionSchema = z.object({
   payment_method: z.string().optional(),
   transaction_date: z.string(),
   notes: z.string().optional(),
+  isInstallment: z.boolean().optional(),
+  installments: z.string().optional(),
 });
 
 type TransactionFormValues = z.infer<typeof transactionSchema>;
 
 const Transactions = () => {
   const { user } = useAuth();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [expenseCategories, setExpenseCategories] = useState<any[]>([]);
+  const [incomeCategories, setIncomeCategories] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -41,8 +45,12 @@ const Transactions = () => {
       description: '',
       transaction_date: new Date().toISOString().split('T')[0],
       payment_method: 'debit',
+      isInstallment: false,
+      installments: '1',
     },
   });
+  const transactionType = form.watch('type');
+  const isInstallment = form.watch('isInstallment');
 
   useEffect(() => {
     if (user) {
@@ -51,31 +59,47 @@ const Transactions = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (transactionType === 'income') {
+      form.setValue('payment_method', undefined);
+      form.setValue('isInstallment', false);
+      form.setValue('installments', '1');
+    } else if (!form.getValues('payment_method')) {
+      form.setValue('payment_method', 'debit');
+    }
+  }, [transactionType, form]);
+
   const loadCategories = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('categories')
       .select('*')
-      .eq('user_id', user?.id)
-      .eq('type', 'expense');
-    
+      .eq('user_id', user?.id);
+
+    if (error) {
+      console.error('Erro ao carregar categorias', error);
+      return;
+    }
+
     if (data) {
-      // If no categories, create default ones
-      if (data.length === 0) {
-        await createDefaultCategories();
-        // Reload categories after creating defaults
-        const { data: newData } = await supabase
-          .from('categories')
-          .select('*')
-          .eq('user_id', user?.id)
-          .eq('type', 'expense');
-        if (newData) setCategories(newData);
-      } else {
-        setCategories(data);
+      const expenses = data.filter((cat) => cat.type === 'expense');
+      const incomes = data.filter((cat) => cat.type === 'income');
+
+      if (expenses.length === 0) {
+        await createDefaultExpenseCategories();
+        return loadCategories();
       }
+
+      if (incomes.length === 0) {
+        await createDefaultIncomeCategories();
+        return loadCategories();
+      }
+
+      setExpenseCategories(expenses);
+      setIncomeCategories(incomes);
     }
   };
 
-  const createDefaultCategories = async () => {
+  const createDefaultExpenseCategories = async () => {
     const defaultCategories = [
       { name: 'Alimentação', icon: '🍔', color: '#EF4444', type: 'expense' },
       { name: 'Transporte', icon: '🚗', color: '#F59E0B', type: 'expense' },
@@ -96,6 +120,22 @@ const Transactions = () => {
     );
   };
 
+  const createDefaultIncomeCategories = async () => {
+    const defaultIncomeCategories = [
+      { name: 'Salário', icon: '💼', color: '#22c55e', type: 'income' },
+      { name: 'Investimento', icon: '📈', color: '#0ea5e9', type: 'income' },
+      { name: 'Outro', icon: '💡', color: '#a855f7', type: 'income' },
+    ];
+
+    await supabase.from('categories').insert(
+      defaultIncomeCategories.map((cat) => ({
+        ...cat,
+        user_id: user?.id,
+        is_default: true,
+      })),
+    );
+  };
+
   const loadTransactions = async () => {
     const { data } = await supabase
       .from('transactions')
@@ -109,6 +149,10 @@ const Transactions = () => {
   const onSubmit = async (data: TransactionFormValues) => {
     setIsLoading(true);
     
+    const isIncome = data.type === 'income';
+    const totalInstallments =
+      !isIncome && data.isInstallment ? Math.max(1, parseInt(data.installments || '1', 10)) : 1;
+
     const { error } = await supabase
       .from('transactions')
       .insert({
@@ -117,9 +161,11 @@ const Transactions = () => {
         amount: parseFloat(data.amount),
         description: data.description,
         category_id: data.category_id || null,
-        payment_method: data.payment_method || null,
+        payment_method: isIncome ? null : data.payment_method || null,
         transaction_date: data.transaction_date,
         notes: data.notes || null,
+        installments: totalInstallments,
+        installment_number: 1,
       });
 
     setIsLoading(false);
@@ -215,26 +261,37 @@ const Transactions = () => {
                 <FormField
                   control={form.control}
                   name="category_id"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Categoria</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione uma categoria" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {categories.map((cat) => (
-                            <SelectItem key={cat.id} value={cat.id}>
-                              {cat.icon} {cat.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const availableCategories =
+                      transactionType === 'income' ? incomeCategories : expenseCategories;
+
+                    return (
+                      <FormItem>
+                        <FormLabel>Categoria</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={
+                                  availableCategories.length === 0
+                                    ? 'Nenhuma categoria disponível'
+                                    : 'Selecione uma categoria'
+                                }
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {availableCategories.map((cat) => (
+                              <SelectItem key={cat.id} value={cat.id}>
+                                {cat.icon} {cat.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
 
                 <FormField
@@ -353,3 +410,21 @@ const Transactions = () => {
 };
 
 export default Transactions;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

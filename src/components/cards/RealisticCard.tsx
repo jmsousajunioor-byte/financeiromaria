@@ -14,8 +14,8 @@ const RealisticCard = ({
   brand,
   last4,
   holderName,
-  gradientStart = '#8b5cf6',
-  gradientEnd = '#c084fc',
+  gradientStart,
+  gradientEnd,
   creditLimit,
   usedLimit,
 }: RealisticCardProps) => {
@@ -27,6 +27,8 @@ const RealisticCard = ({
     }).format(value);
   };
 
+  const startColor = gradientStart || '#8b5cf6';
+  const endColor = gradientEnd || '#c084fc';
   const usagePercentage = creditLimit && usedLimit ? (usedLimit / creditLimit) * 100 : 0;
 
   return (
@@ -34,7 +36,7 @@ const RealisticCard = ({
       <div
         className="relative w-80 h-48 rounded-2xl shadow-2xl transform transition-all duration-300 hover:scale-105 hover:-rotate-1"
         style={{
-          background: `linear-gradient(135deg, ${gradientStart}, ${gradientEnd})`,
+          background: `linear-gradient(135deg, ${startColor}, ${endColor})`,
         }}
       >
         {/* Card shine effect */}
@@ -115,3 +117,5 @@ const RealisticCard = ({
 };
 
 export default RealisticCard;
+
+
