@@ -1,7 +1,7 @@
 -- Ensure required extension for gen_random_uuid
 create extension if not exists pgcrypto;
 
--- Helper function to auto-update updated_at on each row update
+-- Helper function to keep updated_at in sync
 create or replace function public.trigger_set_updated_at()
 returns trigger
 language plpgsql
@@ -32,9 +32,32 @@ alter table public.card_invoices
 create index if not exists card_invoices_user_id_idx on public.card_invoices (user_id);
 create index if not exists card_invoices_card_id_idx on public.card_invoices (card_id);
 
--- Keep trigger idempotent
+-- Trigger to maintain updated_at
 drop trigger if exists set_card_invoices_updated_at on public.card_invoices;
 create trigger set_card_invoices_updated_at
   before update on public.card_invoices
   for each row
   execute function public.trigger_set_updated_at();
+
+-- RLS
+alter table public.card_invoices enable row level security;
+
+drop policy if exists "Users can view own invoices" on public.card_invoices;
+create policy "Users can view own invoices"
+  on public.card_invoices for select
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert own invoices" on public.card_invoices;
+create policy "Users can insert own invoices"
+  on public.card_invoices for insert
+  with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update own invoices" on public.card_invoices;
+create policy "Users can update own invoices"
+  on public.card_invoices for update
+  using (auth.uid() = user_id);
+
+drop policy if exists "Users can delete own invoices" on public.card_invoices;
+create policy "Users can delete own invoices"
+  on public.card_invoices for delete
+  using (auth.uid() = user_id);
