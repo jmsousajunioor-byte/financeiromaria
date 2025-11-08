@@ -296,30 +296,6 @@ const Transactions = () => {
 
                 <FormField
                   control={form.control}
-                  name="payment_method"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Método de Pagamento</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="debit">Débito</SelectItem>
-                          <SelectItem value="credit">Crédito</SelectItem>
-                          <SelectItem value="pix">PIX</SelectItem>
-                          <SelectItem value="cash">Dinheiro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
                   name="transaction_date"
                   render={({ field }) => (
                     <FormItem>
@@ -410,6 +386,7 @@ const Transactions = () => {
 };
 
 export default Transactions;
+
 
 
 
