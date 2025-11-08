@@ -273,18 +273,22 @@ const Cards = () => {
       const newPaidAmount = parseFloat((previouslyPaid + paidDelta).toFixed(2));
       const finalStatus = targetStatus === 'paid' || newPaidAmount >= adjustedTotal ? 'paid' : 'partial';
 
-      const { error } = await supabase.from('card_invoices').upsert(
-        {
-          user_id: user.id,
-          card_id: selectedCardId,
-          month: toISODate(start),
-          total_amount: adjustedTotal,
-          paid_amount: newPaidAmount,
-          status: finalStatus,
-          paid_at: finalStatus === 'paid' ? new Date().toISOString() : null,
-        },
-        { onConflict: 'user_id,card_id,month' },
-      );
+      const { error } = await supabase
+        .from('card_invoices')
+        .upsert(
+          {
+            user_id: user.id,
+            card_id: selectedCardId,
+            month: toISODate(start),
+            total_amount: adjustedTotal,
+            paid_amount: newPaidAmount,
+            status: finalStatus,
+            paid_at: finalStatus === 'paid' ? new Date().toISOString() : null,
+          },
+          {
+            onConflict: 'user_id,card_id,month',
+          },
+        );
 
       if (error) {
         throw error;
