@@ -23,14 +23,17 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Profiles policies
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile"
   ON public.profiles FOR SELECT
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
   USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert own profile"
   ON public.profiles FOR INSERT
   WITH CHECK (auth.uid() = id);
@@ -48,6 +51,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -66,18 +70,22 @@ CREATE TABLE IF NOT EXISTS public.categories (
 
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own categories" ON public.categories;
 CREATE POLICY "Users can view own categories"
   ON public.categories FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own categories" ON public.categories;
 CREATE POLICY "Users can insert own categories"
   ON public.categories FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own categories" ON public.categories;
 CREATE POLICY "Users can update own categories"
   ON public.categories FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own categories" ON public.categories;
 CREATE POLICY "Users can delete own categories"
   ON public.categories FOR DELETE
   USING (auth.uid() = user_id);
@@ -102,18 +110,22 @@ CREATE TABLE IF NOT EXISTS public.cards (
 
 ALTER TABLE public.cards ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own cards" ON public.cards;
 CREATE POLICY "Users can view own cards"
   ON public.cards FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own cards" ON public.cards;
 CREATE POLICY "Users can insert own cards"
   ON public.cards FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own cards" ON public.cards;
 CREATE POLICY "Users can update own cards"
   ON public.cards FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own cards" ON public.cards;
 CREATE POLICY "Users can delete own cards"
   ON public.cards FOR DELETE
   USING (auth.uid() = user_id);
@@ -134,18 +146,22 @@ CREATE TABLE IF NOT EXISTS public.banks (
 
 ALTER TABLE public.banks ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own banks" ON public.banks;
 CREATE POLICY "Users can view own banks"
   ON public.banks FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own banks" ON public.banks;
 CREATE POLICY "Users can insert own banks"
   ON public.banks FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own banks" ON public.banks;
 CREATE POLICY "Users can update own banks"
   ON public.banks FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own banks" ON public.banks;
 CREATE POLICY "Users can delete own banks"
   ON public.banks FOR DELETE
   USING (auth.uid() = user_id);
@@ -173,18 +189,22 @@ CREATE TABLE IF NOT EXISTS public.transactions (
 
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view own transactions" ON public.transactions;
 CREATE POLICY "Users can view own transactions"
   ON public.transactions FOR SELECT
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own transactions" ON public.transactions;
 CREATE POLICY "Users can insert own transactions"
   ON public.transactions FOR INSERT
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own transactions" ON public.transactions;
 CREATE POLICY "Users can update own transactions"
   ON public.transactions FOR UPDATE
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete own transactions" ON public.transactions;
 CREATE POLICY "Users can delete own transactions"
   ON public.transactions FOR DELETE
   USING (auth.uid() = user_id);

@@ -8,7 +8,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
-import { CreditCard, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { CreditCard, Info, Loader2, Plus, Trash2 } from 'lucide-react';
 import CardWizard from '@/components/cards/CardWizard';
 import RealisticCard from '@/components/cards/RealisticCard';
 import { toast } from 'sonner';
@@ -45,6 +46,7 @@ const Cards = () => {
   const [selectedTransactionIds, setSelectedTransactionIds] = useState<string[]>([]);
   const [isRegisteringPayment, setIsRegisteringPayment] = useState(false);
   const [invoiceRecord, setInvoiceRecord] = useState<CardInvoiceRow | null>(null);
+  const [invoiceTrackingAvailable, setInvoiceTrackingAvailable] = useState(true);
 
   const monthOptions = useMemo(() => {
     const result: Array<{ value: string; label: string }> = [];
@@ -194,17 +196,36 @@ const Cards = () => {
       .eq('month', toISODate(start))
       .maybeSingle();
 
-    if (invoiceError && invoiceError.code !== 'PGRST116') {
-      console.error('Erro ao carregar status da fatura', invoiceError);
+    if (invoiceError) {
+      if (invoiceError.code === 'PGRST205') {
+        console.warn('Tabela card_invoices não encontrada. Desabilitando status de faturas.');
+        setInvoiceTrackingAvailable(false);
+        setInvoiceRecord(null);
+      } else if (invoiceError.code === 'PGRST116') {
+        setInvoiceTrackingAvailable(true);
+        setInvoiceRecord(null);
+      } else {
+        console.error('Erro ao carregar status da fatura', invoiceError);
+        setInvoiceRecord(null);
+      }
+    } else {
+      setInvoiceTrackingAvailable(true);
+      setInvoiceRecord(invoiceData ?? null);
     }
-
-    setInvoiceRecord(invoiceData ?? null);
     setIsStatementLoading(false);
   }, [selectedCardId, statementMonth, user]);
 
   useEffect(() => {
     loadStatement();
   }, [loadStatement]);
+
+  useEffect(() => {
+    if (!invoiceTrackingAvailable) {
+      toast.info(
+        'Registro de status da fatura indisponível. Execute a migration card_invoices no Supabase para habilitar esse recurso.',
+      );
+    }
+  }, [invoiceTrackingAvailable]);
 
   const selectedCard = useMemo(
     () => cards.find((card) => card.id === selectedCardId) ?? null,
@@ -262,7 +283,7 @@ const Cards = () => {
 
   const updateInvoiceRecord = useCallback(
     async (paidDelta: number, targetStatus: 'paid' | 'partial') => {
-      if (!user || !selectedCardId || paidDelta <= 0) return;
+      if (!user || !selectedCardId || paidDelta <= 0 || !invoiceTrackingAvailable) return false;
 
       const { start } = getMonthBoundaries(statementMonth);
       const previouslyPaid = invoiceRecord?.paid_amount ?? 0;
@@ -291,10 +312,25 @@ const Cards = () => {
         );
 
       if (error) {
+        if (error.code === 'PGRST205') {
+          console.warn('Tabela card_invoices não encontrada durante o registro da fatura.');
+          setInvoiceTrackingAvailable(false);
+          return false;
+        }
         throw error;
       }
+
+      return true;
     },
-    [invoiceRecord?.paid_amount, invoiceRecord?.total_amount, selectedCardId, statementMonth, statementSummary.totalDue, user],
+    [
+      invoiceRecord?.paid_amount,
+      invoiceRecord?.total_amount,
+      invoiceTrackingAvailable,
+      selectedCardId,
+      statementMonth,
+      statementSummary.totalDue,
+      user,
+    ],
   );
 
   const handleMarkInvoiceAsPaid = async () => {
@@ -310,8 +346,8 @@ const Cards = () => {
         0,
       );
       await registerInstallmentProgress(statementTransactions);
-      await updateInvoiceRecord(totalToRegister, 'paid');
-      toast.success('Fatura registrada como paga!');
+      const invoicePersisted = await updateInvoiceRecord(totalToRegister, 'paid');
+      toast.success(invoicePersisted ? 'Fatura registrada como paga!' : 'Parcelas registradas como pagas!');
       await loadStatement();
       await loadCards();
     } catch (error) {
@@ -339,8 +375,10 @@ const Cards = () => {
         0,
       );
       await registerInstallmentProgress(transactionsToUpdate);
-      await updateInvoiceRecord(partialValue, 'partial');
-      toast.success('Pagamento parcial registrado!');
+      const invoicePersisted = await updateInvoiceRecord(partialValue, 'partial');
+      toast.success(
+        invoicePersisted ? 'Pagamento parcial registrado!' : 'Parcelas selecionadas atualizadas com sucesso!',
+      );
       setSelectedTransactionIds([]);
       await loadStatement();
       await loadCards();
@@ -468,6 +506,17 @@ const Cards = () => {
           </div>
         </CardHeader>
         <CardContent>
+          {!invoiceTrackingAvailable && (
+            <Alert className="mb-6">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Registro detalhado da fatura indisponível</AlertTitle>
+              <AlertDescription>
+                As parcelas continuam sendo atualizadas normalmente, porém para salvar o status da fatura execute a
+                migration <code>supabase/migrations/20251108160000_add_card_invoices.sql</code> no seu projeto Supabase
+                (ex.: <code>supabase db push</code>).
+              </AlertDescription>
+            </Alert>
+          )}
           {selectedCard ? (
             <>
               <div className="grid gap-4 md:grid-cols-3">

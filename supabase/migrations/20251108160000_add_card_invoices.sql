@@ -27,6 +27,8 @@ create table if not exists public.card_invoices (
 );
 
 alter table public.card_invoices
+  drop constraint if exists card_invoices_user_card_month_key;
+alter table public.card_invoices
   add constraint card_invoices_user_card_month_key unique (user_id, card_id, month);
 
 create index if not exists card_invoices_user_id_idx on public.card_invoices (user_id);
