@@ -92,7 +92,7 @@ const createDefaultValues = (): TransactionFormValues => ({
   notes: '',
   isInstallment: false,
   installments: '1',
-  installmentsPaid: '1',
+  installmentsPaid: '0',
 });
 
 const Transactions = () => {
@@ -112,7 +112,20 @@ const Transactions = () => {
   });
   const transactionType = form.watch('type');
   const isInstallment = form.watch('isInstallment');
+  const watchedSourceType = form.watch('source_type');
   const isEditing = Boolean(editingTransaction);
+
+  const getDefaultInstallmentsPaid = useCallback(() => {
+    const currentType = form.getValues('type');
+    const sourceTypeValue = form.getValues('source_type');
+    if (currentType === 'income') {
+      return '1';
+    }
+    if (sourceTypeValue === 'card') {
+      return '0';
+    }
+    return '1';
+  }, [form]);
 
   useEffect(() => {
     if (transactionType === 'income') {
@@ -120,10 +133,19 @@ const Transactions = () => {
       form.setValue('isInstallment', false);
       form.setValue('installments', '1');
       form.setValue('installmentsPaid', '1');
-    } else if (!form.getValues('payment_method')) {
-      form.setValue('payment_method', 'debit');
+    } else {
+      if (!form.getValues('payment_method')) {
+        form.setValue('payment_method', 'debit');
+      }
+      form.setValue('installmentsPaid', getDefaultInstallmentsPaid());
     }
-  }, [transactionType, form]);
+  }, [transactionType, form, getDefaultInstallmentsPaid]);
+
+  useEffect(() => {
+    if (transactionType === 'expense' && !form.getValues('isInstallment')) {
+      form.setValue('installmentsPaid', getDefaultInstallmentsPaid());
+    }
+  }, [watchedSourceType, transactionType, form, getDefaultInstallmentsPaid]);
 
   const createDefaultExpenseCategories = useCallback(async () => {
     if (!user) return;
@@ -272,8 +294,9 @@ const Transactions = () => {
       isInstallment: isExpenseInstallment,
       installments: (transaction.installments ?? 1).toString(),
       installmentsPaid: (
-        transaction.installment_number ??
-        (isExpenseInstallment ? 0 : 1)
+        transaction.source_type === 'card'
+          ? transaction.installment_number ?? 0
+          : transaction.installment_number ?? transaction.installments ?? 1
       ).toString(),
     });
   };
@@ -317,10 +340,16 @@ const Transactions = () => {
     const totalInstallments =
       !isIncome && data.isInstallment ? Math.max(1, parseInt(data.installments || '1', 10)) : 1;
 
-    const paidInstallmentsRaw =
-      !isIncome && data.isInstallment
-        ? parseInt(data.installmentsPaid || '0', 10)
-        : totalInstallments;
+    let paidInstallmentsRaw: number;
+    if (isIncome) {
+      paidInstallmentsRaw = totalInstallments;
+    } else if (data.source_type === 'card') {
+      paidInstallmentsRaw = parseInt(data.installmentsPaid || '0', 10);
+    } else if (data.isInstallment) {
+      paidInstallmentsRaw = parseInt(data.installmentsPaid || '0', 10);
+    } else {
+      paidInstallmentsRaw = totalInstallments;
+    }
     const paidInstallments = Math.min(
       Math.max(paidInstallmentsRaw || 0, 0),
       totalInstallments,
@@ -578,7 +607,7 @@ const Transactions = () => {
                                   }
                                 } else {
                                   form.setValue('installments', '1');
-                                  form.setValue('installmentsPaid', '1');
+                                  form.setValue('installmentsPaid', getDefaultInstallmentsPaid());
                                 }
                               }}
                             />
