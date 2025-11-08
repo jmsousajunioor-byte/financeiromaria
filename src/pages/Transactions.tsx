@@ -5,7 +5,15 @@ import type { Database } from '@/integrations/supabase/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  SelectGroup,
+  SelectLabel,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -23,6 +31,8 @@ const transactionSchema = z
     amount: z.string().min(1, 'Valor é obrigatório'),
     description: z.string().min(3, 'Descrição deve ter no mínimo 3 caracteres'),
     category_id: z.string().optional(),
+    source_type: z.enum(['card', 'bank']).optional(),
+    source_id: z.string().optional(),
     payment_method: z.string().optional(),
     transaction_date: z.string(),
     notes: z.string().optional(),
@@ -64,6 +74,8 @@ const transactionSchema = z
 type TransactionFormValues = z.infer<typeof transactionSchema>;
 
 type Category = Database['public']['Tables']['categories']['Row'];
+type CardOption = Pick<Database['public']['Tables']['cards']['Row'], 'id' | 'card_brand' | 'card_nickname'>;
+type BankOption = Pick<Database['public']['Tables']['banks']['Row'], 'id' | 'bank_name' | 'nickname'>;
 type TransactionRow = Database['public']['Tables']['transactions']['Row'] & {
   categories?: Category | null;
 };
@@ -73,6 +85,8 @@ const createDefaultValues = (): TransactionFormValues => ({
   amount: '',
   description: '',
   category_id: undefined,
+  source_type: undefined,
+  source_id: undefined,
   payment_method: 'debit',
   transaction_date: new Date().toISOString().split('T')[0],
   notes: '',
@@ -85,6 +99,8 @@ const Transactions = () => {
   const { user } = useAuth();
   const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
   const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
+  const [cards, setCards] = useState<CardOption[]>([]);
+  const [banks, setBanks] = useState<BankOption[]>([]);
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<TransactionRow | null>(null);
@@ -197,11 +213,41 @@ const Transactions = () => {
     if (data) setTransactions(data as TransactionRow[]);
   }, [user]);
 
+  const loadSources = useCallback(async () => {
+    if (!user) return;
+
+    const [{ data: cardsData, error: cardsError }, { data: banksData, error: banksError }] = await Promise.all([
+      supabase
+        .from('cards')
+        .select('id, card_brand, card_nickname')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('banks')
+        .select('id, bank_name, nickname')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false }),
+    ]);
+
+    if (cardsError) {
+      console.error('Erro ao carregar cartões', cardsError);
+    } else if (cardsData) {
+      setCards(cardsData as CardOption[]);
+    }
+
+    if (banksError) {
+      console.error('Erro ao carregar bancos', banksError);
+    } else if (banksData) {
+      setBanks(banksData as BankOption[]);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!user) return;
     loadCategories();
     loadTransactions();
-  }, [user, loadCategories, loadTransactions]);
+    loadSources();
+  }, [user, loadCategories, loadTransactions, loadSources]);
 
   const resetForm = () => {
     form.reset(createDefaultValues());
@@ -219,6 +265,8 @@ const Transactions = () => {
       description: transaction.description ?? '',
       category_id: transaction.category_id ?? undefined,
       payment_method: transaction.payment_method ?? undefined,
+      source_type: transaction.source_type as 'card' | 'bank' | undefined,
+      source_id: transaction.source_id ?? undefined,
       transaction_date: transaction.transaction_date?.split('T')[0] ?? '',
       notes: transaction.notes ?? '',
       isInstallment: isExpenseInstallment,
@@ -285,6 +333,8 @@ const Transactions = () => {
       description: data.description,
       category_id: data.category_id || null,
       payment_method: isIncome ? null : data.payment_method || null,
+      source_type: data.source_id ? data.source_type || null : null,
+      source_id: data.source_id || null,
       transaction_date: data.transaction_date,
       notes: data.notes || null,
       installments: totalInstallments,
@@ -382,6 +432,71 @@ const Transactions = () => {
                     </FormItem>
                   )}
                 />
+
+                {(cards.length > 0 || banks.length > 0) && (
+                  <FormField
+                    control={form.control}
+                    name="source_id"
+                    render={({ field }) => {
+                      const currentType = form.getValues('source_type');
+                      const currentValue =
+                        field.value && currentType ? `${currentType}:${field.value}` : 'none';
+
+                      return (
+                        <FormItem>
+                          <FormLabel>
+                            {transactionType === 'income'
+                              ? 'Conta de destino'
+                              : 'Cartão / conta utilizada'}
+                          </FormLabel>
+                          <Select
+                            value={currentValue}
+                            onValueChange={(value) => {
+                              if (value === 'none') {
+                                field.onChange('');
+                                form.setValue('source_type', undefined);
+                                return;
+                              }
+                              const [type, id] = value.split(':');
+                              field.onChange(id);
+                              form.setValue('source_type', type as 'card' | 'bank');
+                            }}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione uma opção" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="none">Não vincular</SelectItem>
+                              {cards.length > 0 && (
+                                <SelectGroup>
+                                  <SelectLabel>Cartões</SelectLabel>
+                                  {cards.map((card) => (
+                                    <SelectItem key={card.id} value={`card:${card.id}`}>
+                                      {card.card_nickname || card.card_brand}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              )}
+                              {banks.length > 0 && (
+                                <SelectGroup>
+                                  <SelectLabel>Bancos</SelectLabel>
+                                  {banks.map((bank) => (
+                                    <SelectItem key={bank.id} value={`bank:${bank.id}`}>
+                                      {bank.nickname || bank.bank_name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectGroup>
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
+                  />
+                )}
 
                 <FormField
                   control={form.control}
