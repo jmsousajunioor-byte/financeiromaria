@@ -179,6 +179,59 @@ All colors MUST be HSL.
   background: var(--gradient-hero);
 }
 
+/* Backward-compatible utility classes used in components */
+.bg-gradient-primary {
+  background: var(--gradient-primary) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.bg-gradient-secondary {
+  background: var(--gradient-secondary) !important;
+  color: hsl(var(--secondary-foreground)) !important;
+}
+
+.bg-gradient-accent {
+  background: var(--gradient-accent) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+.bg-gradient-expense {
+  background: var(--gradient-expense) !important;
+  color: hsl(var(--expense-foreground)) !important;
+}
+
+.bg-gradient-income {
+  background: var(--gradient-income) !important;
+  color: hsl(var(--income-foreground)) !important;
+}
+
+/* Prominent card used on dashboard stats */
+.card-prominent {
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 0.25rem);
+  padding: 1.25rem;
+  box-shadow: 0 10px 30px -12px hsl(270 70% 60% / 0.45), var(--shadow-lg);
+  transform: translateZ(0);
+}
+
+/* Prominent button style */
+.btn-prominent {
+  padding: 0.75rem 1.25rem !important;
+  font-weight: 600 !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 12px 30px -10px hsl(270 70% 60% / 0.35), var(--shadow-md) !important;
+}
+
+/* Ensure cards and buttons have good contrast in dark mode too */
+.dark .card-prominent {
+  border-color: hsl(var(--sidebar-border));
+}
+
+.dark .btn-prominent {
+  box-shadow: 0 12px 30px -10px hsl(270 70% 65% / 0.25), var(--shadow-md) !important;
+}
+
+
 /* Glass morphism effect */
 .glass {
   background: rgba(255, 255, 255, 0.7);

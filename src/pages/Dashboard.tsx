@@ -213,7 +213,7 @@ const Dashboard = () => {
         </div>
         <Button 
           onClick={() => navigate('/transactions')}
-          className="bg-gradient-primary hover:opacity-90 transition-opacity gap-2"
+          className="bg-gradient-primary btn-prominent hover:opacity-90 transition-opacity gap-2"
         >
           <Plus className="h-4 w-4" />
           Nova Transação
@@ -230,7 +230,7 @@ const Dashboard = () => {
 
       {/* Stats Cards */}
       <div className="grid gap-6 md:grid-cols-3">
-        <Card className="card-hover bg-gradient-expense text-white border-0">
+  <Card className="card-hover card-prominent bg-gradient-expense text-white border-0">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-white/90">
               Total Gasto
@@ -242,7 +242,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="card-hover bg-gradient-income text-white border-0">
+  <Card className="card-hover card-prominent bg-gradient-income text-white border-0">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-white/90">
               Renda
@@ -254,7 +254,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="card-hover bg-gradient-secondary text-white border-0">
+  <Card className="card-hover card-prominent bg-gradient-secondary text-white border-0">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-white/90">
               Saldo
