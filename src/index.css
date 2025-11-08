@@ -245,6 +245,18 @@ All colors MUST be HSL.
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+@supports not ((-webkit-backdrop-filter: blur(12px)) or (backdrop-filter: blur(12px))) {
+  .glass {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(255, 255, 255, 0.45);
+  }
+
+  .dark .glass {
+    background: rgba(15, 15, 20, 0.85);
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+}
+
 /* Smooth animations */
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out;
@@ -283,3 +295,4 @@ All colors MUST be HSL.
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
 }
+
