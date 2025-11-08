@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingDown, TrendingUp, Wallet, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,6 +9,16 @@ import { useNavigate } from 'react-router-dom';
 import FilterBar, { FilterState } from '@/components/dashboard/FilterBar';
 import PieChartComponent from '@/components/dashboard/PieChartComponent';
 import BarChartComponent from '@/components/dashboard/BarChartComponent';
+
+type Category = Database['public']['Tables']['categories']['Row'];
+type CardRow = Database['public']['Tables']['cards']['Row'];
+type BankRow = Database['public']['Tables']['banks']['Row'];
+type TransactionRow = Database['public']['Tables']['transactions']['Row'] & {
+  categories?: Category | null;
+};
+
+type PieChartDatum = { name: string; value: number; color: string };
+type BarChartDatum = { name: string; despesas: number; receitas: number };
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -17,50 +28,39 @@ const Dashboard = () => {
     totalIncome: 0,
     balance: 0,
   });
-  const [recentTransactions, setRecentTransactions] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [cards, setCards] = useState<any[]>([]);
-  const [banks, setBanks] = useState<any[]>([]);
-  const [pieChartData, setPieChartData] = useState<any[]>([]);
-  const [barChartData, setBarChartData] = useState<any[]>([]);
+  const [recentTransactions, setRecentTransactions] = useState<TransactionRow[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [cards, setCards] = useState<CardRow[]>([]);
+  const [banks, setBanks] = useState<BankRow[]>([]);
+  const [pieChartData, setPieChartData] = useState<PieChartDatum[]>([]);
+  const [barChartData, setBarChartData] = useState<BarChartDatum[]>([]);
   const [filters, setFilters] = useState<FilterState>({ dateRange: 'month' });
 
-  useEffect(() => {
-    if (user) {
-      loadAllData();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
-      loadDashboardData();
-    }
-  }, [user, filters]);
-
-  const loadAllData = async () => {
+  const loadAllData = useCallback(async () => {
+    if (!user) return;
     // Load categories
     const { data: categoriesData } = await supabase
       .from('categories')
       .select('*')
       .eq('user_id', user?.id);
-    if (categoriesData) setCategories(categoriesData);
+    if (categoriesData) setCategories(categoriesData as Category[]);
 
     // Load cards
     const { data: cardsData } = await supabase
       .from('cards')
       .select('*')
       .eq('user_id', user?.id);
-    if (cardsData) setCards(cardsData);
+    if (cardsData) setCards(cardsData as CardRow[]);
 
     // Load banks
     const { data: banksData } = await supabase
       .from('banks')
       .select('*')
       .eq('user_id', user?.id);
-    if (banksData) setBanks(banksData);
-  };
+    if (banksData) setBanks(banksData as BankRow[]);
+  }, [user]);
 
-  const getDateRange = () => {
+  const getDateRange = useCallback(() => {
     const today = new Date();
     let startDate: Date;
 
@@ -96,9 +96,10 @@ const Dashboard = () => {
       start: startDate.toISOString().split('T')[0],
       end: new Date().toISOString().split('T')[0],
     };
-  };
+  }, [filters.dateRange, filters.endDate, filters.startDate]);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
+    if (!user) return;
     const dateRange = getDateRange();
     
     let query = supabase
@@ -118,74 +119,73 @@ const Dashboard = () => {
 
     const { data: transactions } = await query.order('transaction_date', { ascending: false });
 
-    if (transactions) {
-      setRecentTransactions(transactions.slice(0, 5));
+    if (!transactions) return;
 
-      // Calculate stats
-      const expenses = transactions
-        .filter(t => t.type === 'expense')
-        .reduce((sum, t) => sum + Number(t.amount), 0);
-      
-      const income = transactions
-        .filter(t => t.type === 'income')
-        .reduce((sum, t) => sum + Number(t.amount), 0);
+    const typedTransactions = transactions as TransactionRow[];
+    setRecentTransactions(typedTransactions.slice(0, 5));
 
-      setStats({
-        totalExpense: expenses,
-        totalIncome: income,
-        balance: income - expenses,
-      });
+    // Calculate stats
+    const expenses = typedTransactions
+      .filter((t) => t.type === 'expense')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+    const income = typedTransactions
+      .filter((t) => t.type === 'income')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
 
-      // Prepare pie chart data (expenses by category)
-      const categoryMap = new Map<string, { value: number; color: string; name: string }>();
-      transactions
-        .filter(t => t.type === 'expense' && t.categories)
-        .forEach(t => {
-          const catName = t.categories.name;
-          const catColor = t.categories.color || '#8b5cf6';
-          const existing = categoryMap.get(catName);
-          if (existing) {
-            existing.value += Number(t.amount);
-          } else {
-            categoryMap.set(catName, {
-              name: catName,
-              value: Number(t.amount),
-              color: catColor,
-            });
-          }
-        });
-
-      setPieChartData(Array.from(categoryMap.values()));
-
-      // Prepare bar chart data (last 6 months or days depending on filter)
-      const isDaily = filters.dateRange === 'week' || filters.dateRange === 'today';
-      const barData = prepareBarChartData(transactions, isDaily);
-      setBarChartData(barData);
-    }
-  };
-
-  const prepareBarChartData = (transactions: any[], isDaily: boolean) => {
-    const dataMap = new Map<string, { despesas: number; receitas: number }>();
-
-    transactions.forEach(t => {
-      const date = new Date(t.transaction_date);
-      const key = isDaily
-        ? date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-        : date.toLocaleDateString('pt-BR', { month: 'short' });
-
-      const existing = dataMap.get(key) || { despesas: 0, receitas: 0 };
-      if (t.type === 'expense') {
-        existing.despesas += Number(t.amount);
-      } else if (t.type === 'income') {
-        existing.receitas += Number(t.amount);
-      }
-      dataMap.set(key, existing);
+    setStats({
+      totalExpense: expenses,
+      totalIncome: income,
+      balance: income - expenses,
     });
 
-    return Array.from(dataMap.entries())
-      .map(([name, values]) => ({ name, ...values }))
-      .slice(-10);
-  };
+    // Prepare pie chart data
+    const categoryTotals = typedTransactions
+      .filter((t) => t.type === 'expense')
+      .reduce((acc: Record<string, number>, t) => {
+        const categoryName = t.categories?.name || 'Outros';
+        acc[categoryName] = (acc[categoryName] || 0) + Number(t.amount);
+        return acc;
+      }, {});
+
+    const pieData: PieChartDatum[] = Object.entries(categoryTotals).map(([category, value]) => ({
+      name: category,
+      value,
+      color: `hsl(var(--${category === 'Outros' ? 'muted' : 'expense'}))`,
+    }));
+    setPieChartData(pieData);
+
+    // Prepare bar chart data (group by month)
+    const monthlyData = typedTransactions.reduce(
+      (acc: Record<string, { despesas: number; receitas: number }>, t) => {
+        const date = new Date(t.transaction_date);
+        const month = date.toLocaleString('pt-BR', { month: 'short' });
+        if (!acc[month]) {
+          acc[month] = { despesas: 0, receitas: 0 };
+        }
+        if (t.type === 'expense') {
+          acc[month].despesas += Number(t.amount);
+        } else {
+          acc[month].receitas += Number(t.amount);
+        }
+        return acc;
+      },
+      {},
+    );
+
+    const barData: BarChartDatum[] = Object.entries(monthlyData).map(([month, values]) => ({
+      name: month,
+      ...values,
+    }));
+    setBarChartData(barData);
+  }, [filters.categoryId, filters.sourceId, filters.sourceType, getDateRange, user]);
+
+  useEffect(() => {
+    loadAllData();
+  }, [loadAllData]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -334,3 +334,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

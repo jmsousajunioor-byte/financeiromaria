@@ -1,4 +1,5 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import type { TooltipProps, LegendProps } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface PieChartComponentProps {
@@ -15,15 +16,18 @@ const PieChartComponent = ({ data }: PieChartComponentProps) => {
     }).format(value);
   };
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  type LegendPayloadItem = NonNullable<LegendProps['payload']>[number];
+
+  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
     if (active && payload && payload.length) {
-      const data = payload[0];
-      const percentage = ((data.value / totalValue) * 100).toFixed(1);
+      const dataPoint = payload[0];
+      const rawValue = Number(dataPoint?.value ?? 0);
+      const percentage = totalValue === 0 ? '0.0' : ((rawValue / totalValue) * 100).toFixed(1);
       return (
         <div className="bg-card border rounded-lg p-3 shadow-lg">
-          <p className="font-medium">{data.name}</p>
+          <p className="font-medium">{dataPoint?.name}</p>
           <p className="text-sm text-muted-foreground">
-            {formatCurrency(data.value)}
+            {formatCurrency(rawValue)}
           </p>
           <p className="text-sm font-semibold text-primary">
             {percentage}%
@@ -71,11 +75,12 @@ const PieChartComponent = ({ data }: PieChartComponentProps) => {
               ))}
             </Pie>
             <Tooltip content={<CustomTooltip />} />
-            <Legend 
-              verticalAlign="bottom" 
+            <Legend
+              verticalAlign="bottom"
               height={36}
-              formatter={(value, entry: any) => {
-                const percentage = ((entry.payload.value / totalValue) * 100).toFixed(0);
+              formatter={(value, entry: LegendPayloadItem) => {
+                const entryValue = Number(entry?.payload?.value ?? 0);
+                const percentage = totalValue === 0 ? '0' : ((entryValue / totalValue) * 100).toFixed(0);
                 return `${value} (${percentage}%)`;
               }}
             />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -109,45 +109,6 @@ const Transactions = () => {
     }
   }, [transactionType, form]);
 
-  const createDefaultExpenseCategories = useCallback(async () => {
-    if (!user) return;
-    const defaultCategories = [
-      { name: 'Alimenta��o', icon: '??', color: '#EF4444', type: 'expense' },
-      { name: 'Transporte', icon: '??', color: '#F59E0B', type: 'expense' },
-      { name: 'Moradia', icon: '??', color: '#8B5CF6', type: 'expense' },
-      { name: 'Sa�de', icon: '??', color: '#EC4899', type: 'expense' },
-      { name: 'Educa��o', icon: '??', color: '#3B82F6', type: 'expense' },
-      { name: 'Lazer', icon: '??', color: '#10B981', type: 'expense' },
-      { name: 'Compras', icon: '???', color: '#F97316', type: 'expense' },
-      { name: 'Outros', icon: '??', color: '#6B7280', type: 'expense' },
-    ];
-
-    await supabase.from('categories').insert(
-      defaultCategories.map(cat => ({
-        ...cat,
-        user_id: user?.id,
-        is_default: true,
-      }))
-    );
-  }, [user]);
-
-  const createDefaultIncomeCategories = useCallback(async () => {
-    if (!user) return;
-    const defaultIncomeCategories = [
-      { name: 'Sal�rio', icon: '??', color: '#22c55e', type: 'income' },
-      { name: 'Investimento', icon: '??', color: '#0ea5e9', type: 'income' },
-      { name: 'Outro', icon: '??', color: '#a855f7', type: 'income' },
-    ];
-
-    await supabase.from('categories').insert(
-      defaultIncomeCategories.map((cat) => ({
-        ...cat,
-        user_id: user?.id,
-        is_default: true,
-      })),
-    );
-  }, [user]);
-
   const loadCategories = useCallback(async () => {
     if (!user) return;
 
@@ -180,6 +141,45 @@ const Transactions = () => {
     }
   }, [createDefaultExpenseCategories, createDefaultIncomeCategories, user]);
 
+  const createDefaultExpenseCategories = useCallback(async () => {
+    if (!user) return;
+    const defaultCategories = [
+      { name: 'Alimentação', icon: '🍔', color: '#EF4444', type: 'expense' },
+      { name: 'Transporte', icon: '🚗', color: '#F59E0B', type: 'expense' },
+      { name: 'Moradia', icon: '🏠', color: '#8B5CF6', type: 'expense' },
+      { name: 'Saúde', icon: '💊', color: '#EC4899', type: 'expense' },
+      { name: 'Educação', icon: '📚', color: '#3B82F6', type: 'expense' },
+      { name: 'Lazer', icon: '🎮', color: '#10B981', type: 'expense' },
+      { name: 'Compras', icon: '🛍️', color: '#F97316', type: 'expense' },
+      { name: 'Outros', icon: '📦', color: '#6B7280', type: 'expense' },
+    ];
+
+    await supabase.from('categories').insert(
+      defaultCategories.map(cat => ({
+        ...cat,
+        user_id: user?.id,
+        is_default: true,
+      }))
+    );
+  }, [user]);
+
+  const createDefaultIncomeCategories = useCallback(async () => {
+    if (!user) return;
+    const defaultIncomeCategories = [
+      { name: 'Salário', icon: '💼', color: '#22c55e', type: 'income' },
+      { name: 'Investimento', icon: '📈', color: '#0ea5e9', type: 'income' },
+      { name: 'Outro', icon: '💡', color: '#a855f7', type: 'income' },
+    ];
+
+    await supabase.from('categories').insert(
+      defaultIncomeCategories.map((cat) => ({
+        ...cat,
+        user_id: user?.id,
+        is_default: true,
+      })),
+    );
+  }, [user]);
+
   const loadTransactions = useCallback(async () => {
     if (!user) return;
 
@@ -190,18 +190,12 @@ const Transactions = () => {
       .order('transaction_date', { ascending: false });
     
     if (error) {
-      toast.error('Erro ao carregar transa��es');
+      toast.error('Erro ao carregar transações');
       return;
     }
 
     if (data) setTransactions(data as TransactionRow[]);
   }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-    loadCategories();
-    loadTransactions();
-  }, [user, loadCategories, loadTransactions]);
 
   const resetForm = () => {
     form.reset(createDefaultValues());
@@ -672,6 +666,7 @@ const Transactions = () => {
 };
 
 export default Transactions;
+
 
 
 

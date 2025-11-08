@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,10 +28,12 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
+type ProfileRow = Database['public']['Tables']['profiles']['Row'];
+
 const Profile = () => {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -48,13 +51,8 @@ const Profile = () => {
     },
   });
 
-  useEffect(() => {
-    if (user) {
-      loadProfile();
-    }
-  }, [user]);
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
+    if (!user) return;
     const { data } = await supabase
       .from('profiles')
       .select('*')
@@ -62,7 +60,7 @@ const Profile = () => {
       .single();
 
     if (data) {
-      setProfile(data);
+      setProfile(data as ProfileRow);
       form.reset({
         full_name: data.full_name || '',
         phone: data.phone || '',
@@ -76,7 +74,11 @@ const Profile = () => {
         address_zip: data.address_zip || '',
       });
     }
-  };
+  }, [form, user]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
 
   const onSubmit = async (data: ProfileFormValues) => {
     setIsLoading(true);

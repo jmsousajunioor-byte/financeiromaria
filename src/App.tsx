@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
 import Cards from "./pages/Cards";
 import Profile from "./pages/Profile";
+import Overview from "./pages/Overview";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,16 @@ const App = () => (
                 <ProtectedRoute>
                   <DashboardLayout>
                     <Transactions />
+                  </DashboardLayout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/overview"
+              element={
+                <ProtectedRoute>
+                  <DashboardLayout>
+                    <Overview />
                   </DashboardLayout>
                 </ProtectedRoute>
               }

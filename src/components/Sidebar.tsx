@@ -1,4 +1,4 @@
-import { Home, CreditCard, TrendingUp, User, LogOut } from 'lucide-react';
+import { Home, CreditCard, TrendingUp, User, LogOut, BarChart3 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ const Sidebar = ({ className, onNavigate, isFloating = true }: SidebarProps) => 
 
   const navItems = [
     { icon: Home, label: 'Dashboard', path: '/dashboard' },
+    { icon: BarChart3, label: 'Visão Geral', path: '/overview' },
     { icon: TrendingUp, label: 'Transações', path: '/transactions' },
     { icon: CreditCard, label: 'Cartões & Bancos', path: '/cards' },
     { icon: User, label: 'Perfil', path: '/profile' },

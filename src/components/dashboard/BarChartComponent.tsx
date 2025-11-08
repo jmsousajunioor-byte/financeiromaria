@@ -1,4 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import type { TooltipProps } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface BarChartComponentProps {
@@ -14,14 +15,14 @@ const BarChartComponent = ({ data }: BarChartComponentProps) => {
     }).format(value);
   };
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-card border rounded-lg p-3 shadow-lg">
           <p className="font-medium mb-2">{payload[0].payload.name}</p>
-          {payload.map((entry: any, index: number) => (
-            <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.name}: {formatCurrency(entry.value)}
+          {payload.map((entry, index) => (
+            <p key={index} className="text-sm" style={{ color: entry?.color }}>
+              {entry?.name}: {formatCurrency(Number(entry?.value ?? 0))}
             </p>
           ))}
         </div>

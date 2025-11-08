@@ -5,12 +5,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import type { Database } from '@/integrations/supabase/types';
+
+type Category = Database['public']['Tables']['categories']['Row'];
+type CardRow = Database['public']['Tables']['cards']['Row'];
+type Bank = Database['public']['Tables']['banks']['Row'];
 
 interface FilterBarProps {
   onFilterChange: (filters: FilterState) => void;
-  categories: any[];
-  cards: any[];
-  banks: any[];
+  categories: Category[];
+  cards: CardRow[];
+  banks: Bank[];
 }
 
 export interface FilterState {
@@ -51,7 +56,9 @@ const FilterBar = ({ onFilterChange, categories, cards, banks }: FilterBarProps)
             </Label>
             <Select
               value={filters.dateRange}
-              onValueChange={(value) => updateFilters({ dateRange: value as any })}
+              onValueChange={(value) =>
+                updateFilters({ dateRange: value as FilterState['dateRange'] })
+              }
             >
               <SelectTrigger id="dateRange">
                 <Calendar className="mr-2 h-4 w-4" />
@@ -127,7 +134,10 @@ const FilterBar = ({ onFilterChange, categories, cards, banks }: FilterBarProps)
                   updateFilters({ sourceId: undefined, sourceType: undefined });
                 } else {
                   const [type, id] = value.split('-');
-                  updateFilters({ sourceId: id, sourceType: type as any });
+                  updateFilters({
+                    sourceId: id,
+                    sourceType: type as FilterState['sourceType'],
+                  });
                 }
               }}
             >

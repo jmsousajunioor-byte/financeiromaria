@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CreditCard, Plus, Trash2 } from 'lucide-react';
@@ -18,21 +19,20 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+type CardRow = Database['public']['Tables']['cards']['Row'];
+type BankRow = Database['public']['Tables']['banks']['Row'];
+type CardWithUsage = CardRow & { usedLimit: number };
+
 const Cards = () => {
   const { user } = useAuth();
-  const [cards, setCards] = useState<any[]>([]);
-  const [banks, setBanks] = useState<any[]>([]);
+  const [cards, setCards] = useState<CardWithUsage[]>([]);
+  const [banks, setBanks] = useState<BankRow[]>([]);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [deleteCardId, setDeleteCardId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      loadCards();
-      loadBanks();
-    }
-  }, [user]);
+  const loadCards = useCallback(async () => {
+    if (!user) return;
 
-  const loadCards = async () => {
     const { data } = await supabase
       .from('cards')
       .select('*')
@@ -41,7 +41,7 @@ const Cards = () => {
     
     if (data) {
       // Load transactions to calculate used limit
-      const cardsWithUsage = await Promise.all(
+      const cardsWithUsage = await Promise.all<CardWithUsage>(
         data.map(async (card) => {
           const { data: transactions } = await supabase
             .from('transactions')
@@ -51,23 +51,31 @@ const Cards = () => {
             .eq('source_type', 'card')
             .eq('type', 'expense');
           
-          const usedLimit = transactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+          const usedLimit =
+            transactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
           return { ...card, usedLimit };
         })
       );
       setCards(cardsWithUsage);
     }
-  };
+  }, [user]);
 
-  const loadBanks = async () => {
+  const loadBanks = useCallback(async () => {
+    if (!user) return;
+
     const { data } = await supabase
       .from('banks')
       .select('*')
       .eq('user_id', user?.id)
       .order('created_at', { ascending: false });
     
-    if (data) setBanks(data);
-  };
+    if (data) setBanks(data as BankRow[]);
+  }, [user]);
+
+  useEffect(() => {
+    loadCards();
+    loadBanks();
+  }, [loadBanks, loadCards]);
 
   const handleDeleteCard = async () => {
     if (!deleteCardId) return;

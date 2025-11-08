@@ -11,10 +11,8 @@ All colors MUST be HSL.
     /* Vibrant modern color palette */
     --background: 240 20% 99%;
     --foreground: 240 10% 10%;
-
     --card: 0 0% 100%;
     --card-foreground: 240 10% 10%;
-
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 10%;
 
@@ -47,26 +45,22 @@ All colors MUST be HSL.
     /* Income: Green gradient */
     --income: 142 76% 45%;
     --income-foreground: 0 0% 100%;
-
     --muted: 240 10% 96%;
     --muted-foreground: 240 5% 45%;
-
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
     --border: 240 10% 90%;
     --input: 240 10% 90%;
     --ring: 270 70% 60%;
-
     --radius: 1rem;
 
     /* Gradient tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(270 70% 60%), hsl(280 80% 70%));
-    --gradient-secondary: linear-gradient(135deg, hsl(180 70% 55%), hsl(190 80% 65%));
-    --gradient-accent: linear-gradient(135deg, hsl(330 80% 60%), hsl(340 90% 70%));
-    --gradient-expense: linear-gradient(135deg, hsl(0 84% 60%), hsl(25 95% 55%));
-    --gradient-income: linear-gradient(135deg, hsl(142 76% 45%), hsl(160 84% 55%));
-    --gradient-hero: linear-gradient(135deg, hsl(270 70% 60%), hsl(330 80% 60%));
+    --gradient-primary: linear-gradient(135deg, hsl(270deg 70% 60%), hsl(280deg 80% 70%));
+    --gradient-secondary: linear-gradient(135deg, hsl(180deg 70% 55%), hsl(190deg 80% 65%));
+    --gradient-accent: linear-gradient(135deg, hsl(330deg 80% 60%), hsl(340deg 90% 70%));
+    --gradient-expense: linear-gradient(135deg, hsl(0deg 84% 60%), hsl(25deg 95% 55%));
+    --gradient-income: linear-gradient(135deg, hsl(142deg 76% 45%), hsl(160deg 84% 55%));
+    --gradient-hero: linear-gradient(135deg, hsl(270deg 70% 60%), hsl(330deg 80% 60%));
     
     /* Sidebar */
     --sidebar-background: 240 30% 10%;
@@ -79,10 +73,10 @@ All colors MUST be HSL.
     --sidebar-ring: 270 70% 60%;
 
     /* Shadows */
-    --shadow-sm: 0 2px 8px -2px hsl(240 20% 10% / 0.08);
-    --shadow-md: 0 4px 16px -4px hsl(240 20% 10% / 0.12);
-    --shadow-lg: 0 8px 32px -8px hsl(240 20% 10% / 0.16);
-    --shadow-glow: 0 0 32px hsl(270 70% 60% / 0.3);
+    --shadow-sm: 0 2px 8px -2px hsl(240deg 20% 10% / 8%);
+    --shadow-md: 0 4px 16px -4px hsl(240deg 20% 10% / 12%);
+    --shadow-lg: 0 8px 32px -8px hsl(240deg 20% 10% / 16%);
+    --shadow-glow: 0 0 32px hsl(270deg 70% 60% / 30%);
     
     /* Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -91,29 +85,21 @@ All colors MUST be HSL.
   .dark {
     --background: 240 30% 8%;
     --foreground: 0 0% 98%;
-
     --card: 240 25% 12%;
     --card-foreground: 0 0% 98%;
-
     --popover: 240 25% 12%;
     --popover-foreground: 0 0% 98%;
-
     --primary: 270 70% 65%;
     --primary-foreground: 0 0% 100%;
-    
     --secondary: 180 70% 60%;
     --secondary-foreground: 0 0% 100%;
-    
     --accent: 330 80% 65%;
     --accent-foreground: 0 0% 100%;
-
     --muted: 240 20% 18%;
     --muted-foreground: 240 5% 65%;
-
     --border: 240 20% 20%;
     --input: 240 20% 20%;
     --ring: 270 70% 65%;
-
     --sidebar-background: 240 35% 6%;
     --sidebar-foreground: 0 0% 98%;
     --sidebar-primary: 270 70% 65%;
@@ -132,7 +118,8 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+
+    font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 
   /* Custom scrollbar */
@@ -210,7 +197,7 @@ All colors MUST be HSL.
   border: 1px solid hsl(var(--border));
   border-radius: calc(var(--radius) - 0.25rem);
   padding: 1.25rem;
-  box-shadow: 0 10px 30px -12px hsl(270 70% 60% / 0.45), var(--shadow-lg);
+  box-shadow: 0 10px 30px -12px hsl(270deg 70% 60% / 45%), var(--shadow-lg);
   transform: translateZ(0);
 }
 
@@ -219,7 +206,7 @@ All colors MUST be HSL.
   padding: 0.75rem 1.25rem !important;
   font-weight: 600 !important;
   border-radius: 0.75rem !important;
-  box-shadow: 0 12px 30px -10px hsl(270 70% 60% / 0.35), var(--shadow-md) !important;
+  box-shadow: 0 12px 30px -10px hsl(270deg 70% 60% / 35%), var(--shadow-md) !important;
 }
 
 /* Ensure cards and buttons have good contrast in dark mode too */
@@ -228,45 +215,46 @@ All colors MUST be HSL.
 }
 
 .dark .btn-prominent {
-  box-shadow: 0 12px 30px -10px hsl(270 70% 65% / 0.25), var(--shadow-md) !important;
+  box-shadow: 0 12px 30px -10px hsl(270deg 70% 65% / 25%), var(--shadow-md) !important;
 }
 
 
 /* Glass morphism effect */
 .glass {
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
+  background: rgb(255 255 255 / 70%);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgb(255 255 255 / 18%);
 }
 
 .dark .glass {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgb(0 0 0 / 40%);
+  border: 1px solid rgb(255 255 255 / 10%);
 }
 
 @supports not ((-webkit-backdrop-filter: blur(12px)) or (backdrop-filter: blur(12px))) {
   .glass {
-    background: rgba(255, 255, 255, 0.92);
-    border-color: rgba(255, 255, 255, 0.45);
+    background: rgb(255 255 255 / 92%);
+    border-color: rgb(255 255 255 / 45%);
   }
 
   .dark .glass {
-    background: rgba(15, 15, 20, 0.85);
-    border-color: rgba(255, 255, 255, 0.15);
+    background: rgb(15 15 20 / 85%);
+    border-color: rgb(255 255 255 / 15%);
   }
 }
 
 /* Smooth animations */
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out;
+  animation: fade-in 0.3s ease-out;
 }
 
-@keyframes fadeIn {
+@keyframes fade-in {
   from {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -274,13 +262,14 @@ All colors MUST be HSL.
 }
 
 .animate-slide-in {
-  animation: slideIn 0.4s ease-out;
+  animation: slide-in 0.4s ease-out;
 }
 
-@keyframes slideIn {
+@keyframes slide-in {
   from {
     transform: translateX(-100%);
   }
+
   to {
     transform: translateX(0);
   }
