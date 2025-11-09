@@ -24,6 +24,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { calculateInstallmentStatus } from '@/lib/transaction-helpers';
+import { getCategoryDisplay } from '@/lib/category-display';
 
 const transactionSchema = z
   .object({
@@ -84,7 +85,7 @@ const createDefaultValues = (): TransactionFormValues => ({
   type: 'expense',
   amount: '',
   description: '',
-  category_id: undefined,
+  category_id: '',
   source_type: undefined,
   source_id: undefined,
   payment_method: 'debit',
@@ -285,7 +286,7 @@ const Transactions = () => {
       type: transaction.type as 'expense' | 'income',
       amount: transaction.amount?.toString() ?? '',
       description: transaction.description ?? '',
-      category_id: transaction.category_id ?? undefined,
+      category_id: transaction.category_id ?? '',
       payment_method: transaction.payment_method ?? undefined,
       source_type: transaction.source_type as 'card' | 'bank' | undefined,
       source_id: transaction.source_id ?? undefined,
@@ -551,7 +552,10 @@ const Transactions = () => {
                     return (
                       <FormItem>
                         <FormLabel>Categoria</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value ?? ''}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue
@@ -564,11 +568,14 @@ const Transactions = () => {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {availableCategories.map((cat) => (
-                              <SelectItem key={cat.id} value={cat.id}>
-                                {cat.icon} {cat.name}
-                              </SelectItem>
-                            ))}
+                            {availableCategories.map((cat) => {
+                              const display = getCategoryDisplay(cat);
+                              return (
+                                <SelectItem key={cat.id} value={cat.id}>
+                                  {display.icon} {display.name}
+                                </SelectItem>
+                              );
+                            })}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -734,6 +741,7 @@ const Transactions = () => {
               ) : (
                 transactions.map((transaction) => {
                   const installmentStatus = calculateInstallmentStatus(transaction);
+                  const categoryDisplay = getCategoryDisplay(transaction.categories);
 
                   return (
                     <div
@@ -756,7 +764,7 @@ const Transactions = () => {
                           <p className="text-sm font-medium">{transaction.description}</p>
                           <p className="text-xs text-muted-foreground">
                             {formatDate(transaction.transaction_date)} •{' '}
-                            {transaction.categories?.name || 'Sem categoria'}
+                            {categoryDisplay.icon} {categoryDisplay.name}
                           </p>
                           {transaction.notes && (
                             <p className="text-xs text-muted-foreground">{transaction.notes}</p>

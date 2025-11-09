@@ -5,15 +5,17 @@ import type { Database } from '@/integrations/supabase/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CreditCard, Info, Loader2, Plus, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { CreditCard, Info, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import CardWizard from '@/components/cards/CardWizard';
 import RealisticCard from '@/components/cards/RealisticCard';
 import { toast } from 'sonner';
 import { calculateInstallmentStatus } from '@/lib/transaction-helpers';
+import { getCategoryDisplay } from '@/lib/category-display';
+import { CARD_COLOR_PRESETS } from '@/lib/card-presets';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,6 +26,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 type CardRow = Database['public']['Tables']['cards']['Row'];
 type BankRow = Database['public']['Tables']['banks']['Row'];
@@ -47,18 +57,16 @@ const Cards = () => {
   const [isRegisteringPayment, setIsRegisteringPayment] = useState(false);
   const [invoiceRecord, setInvoiceRecord] = useState<CardInvoiceRow | null>(null);
   const [invoiceTrackingAvailable, setInvoiceTrackingAvailable] = useState(true);
-
-  const monthOptions = useMemo(() => {
-    const result: Array<{ value: string; label: string }> = [];
-    const today = new Date();
-    for (let index = 0; index < 12; index++) {
-      const date = new Date(today.getFullYear(), today.getMonth() - index, 1);
-      const value = date.toISOString().slice(0, 7);
-      const label = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-      result.push({ value, label: label.charAt(0).toUpperCase() + label.slice(1) });
-    }
-    return result;
-  }, []);
+  const [editingCard, setEditingCard] = useState<CardWithUsage | null>(null);
+  const [editCardData, setEditCardData] = useState({
+    card_nickname: '',
+    credit_limit: '',
+    billing_due_day: '',
+    card_gradient_start: '',
+    card_gradient_end: '',
+    card_color: '',
+  });
+  const [isUpdatingCard, setIsUpdatingCard] = useState(false);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -281,6 +289,47 @@ const Cards = () => {
     [user],
   );
 
+  const openCardEditor = (card: CardWithUsage) => {
+    setEditingCard(card);
+    setEditCardData({
+      card_nickname: card.card_nickname ?? '',
+      credit_limit: card.credit_limit?.toString() ?? '',
+      billing_due_day: card.billing_due_day?.toString() ?? '',
+      card_gradient_start: card.card_gradient_start ?? '',
+      card_gradient_end: card.card_gradient_end ?? '',
+      card_color: card.card_color ?? '',
+      preset_id: '',
+    });
+  };
+
+  const handleUpdateCard = async () => {
+    if (!editingCard || !user) return;
+
+    setIsUpdatingCard(true);
+    const { error } = await supabase
+      .from('cards')
+      .update({
+        card_nickname: editCardData.card_nickname,
+        credit_limit: editCardData.credit_limit ? parseFloat(editCardData.credit_limit) : null,
+        billing_due_day: editCardData.billing_due_day ? parseInt(editCardData.billing_due_day, 10) : null,
+        card_gradient_start: editCardData.card_gradient_start || editingCard.card_gradient_start,
+        card_gradient_end: editCardData.card_gradient_end || editingCard.card_gradient_end,
+        card_color: editCardData.card_color || editingCard.card_color,
+      })
+      .eq('id', editingCard.id)
+      .eq('user_id', user.id);
+    setIsUpdatingCard(false);
+
+    if (error) {
+      toast.error('Erro ao atualizar cartão.');
+      return;
+    }
+
+    toast.success('Cartão atualizado com sucesso!');
+    setEditingCard(null);
+    await loadCards();
+  };
+
   const updateInvoiceRecord = useCallback(
     async (paidDelta: number, targetStatus: 'paid' | 'partial') => {
       if (!user || !selectedCardId || paidDelta <= 0 || !invoiceTrackingAvailable) return false;
@@ -459,12 +508,15 @@ const Cards = () => {
                           holderName={cardItem.cardholder_name}
                           gradientStart={cardItem.card_gradient_start}
                           gradientEnd={cardItem.card_gradient_end}
+                          accentColor={cardItem.card_color || undefined}
                           creditLimit={cardItem.credit_limit}
                           usedLimit={cardItem.usedLimit}
+                          expirationMonth={cardItem.expiration_month}
+                          expirationYear={cardItem.expiration_year}
                         />
                         <div className="mt-4 flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Limite utilizado</span>
-                          <span className="font-semibold">{formatCurrency(cardItem.usedLimit)}</span>
+                          <span className="text-muted-foreground">Limite disponível</span>
+                          <span className="font-semibold">{formatCurrency(cardItem.credit_limit ?? 0)}</span>
                         </div>
                       </button>
                     </CarouselItem>
@@ -490,18 +542,19 @@ const Cards = () => {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <Select value={statementMonth} onValueChange={setStatementMonth}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Selecione o mês" />
-                </SelectTrigger>
-                <SelectContent>
-                  {monthOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex flex-col space-y-1">
+                <span className="text-xs uppercase text-muted-foreground tracking-wide">Competência</span>
+                <Input
+                  type="month"
+                  value={statementMonth}
+                  onChange={(event) => {
+                    if (event.target.value) {
+                      setStatementMonth(event.target.value);
+                    }
+                  }}
+                  className="w-[200px]"
+                />
+              </div>
             </div>
           </div>
         </CardHeader>
@@ -597,6 +650,9 @@ const Cards = () => {
                         (transaction.installment_number ?? 0) + 1,
                         totalInstallments,
                       );
+                      const categoryDisplay = transaction.categories
+                        ? getCategoryDisplay(transaction.categories)
+                        : null;
 
                       return (
                         <div
@@ -618,9 +674,9 @@ const Cards = () => {
                                 {formatDate(transaction.transaction_date)} • Parcela {currentInstallment}/
                                 {totalInstallments}
                               </p>
-                              {transaction.categories?.name && (
+                              {categoryDisplay && (
                                 <Badge variant="outline" className="mt-2 w-fit">
-                                  {transaction.categories.icon} {transaction.categories.name}
+                                  {categoryDisplay.icon} {categoryDisplay.name}
                                 </Badge>
                               )}
                             </div>
@@ -672,7 +728,7 @@ const Cards = () => {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {cards.map((card) => (
-              <div key={card.id} className="relative group">
+              <div key={card.id} className="relative group rounded-2xl border bg-muted/30 p-4">
                 <RealisticCard
                   nickname={card.card_nickname}
                   brand={card.card_brand}
@@ -680,17 +736,28 @@ const Cards = () => {
                   holderName={card.cardholder_name}
                   gradientStart={card.card_gradient_start}
                   gradientEnd={card.card_gradient_end}
+                  accentColor={card.card_color || undefined}
                   creditLimit={card.credit_limit}
                   usedLimit={card.usedLimit}
+                  expirationMonth={card.expiration_month}
+                  expirationYear={card.expiration_year}
                 />
-                <Button
-                  variant="destructive"
-                  size="icon"
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => setDeleteCardId(card.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    onClick={() => openCardEditor(card)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    onClick={() => setDeleteCardId(card.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -740,6 +807,105 @@ const Cards = () => {
         onOpenChange={setWizardOpen}
         onSuccess={loadCards}
       />
+
+      <Dialog open={!!editingCard} onOpenChange={(open) => !open && setEditingCard(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar cartão</DialogTitle>
+            <DialogDescription>Atualize os dados principais para manter o controle do limite e do vencimento.</DialogDescription>
+          </DialogHeader>
+          {editingCard && (
+            <div className="space-y-4">
+              <RealisticCard
+                nickname={editCardData.card_nickname || editingCard.card_nickname}
+                brand={editingCard.card_brand}
+                last4={editingCard.card_number_last4}
+                holderName={editingCard.cardholder_name}
+                gradientStart={editingCard.card_gradient_start}
+                gradientEnd={editingCard.card_gradient_end}
+                accentColor={editingCard.card_color || undefined}
+                creditLimit={editCardData.credit_limit ? parseFloat(editCardData.credit_limit) : editingCard.credit_limit ?? undefined}
+                usedLimit={editingCard.usedLimit}
+                expirationMonth={editingCard.expiration_month}
+                expirationYear={editingCard.expiration_year}
+              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase">Como chamar este cartão</span>
+                  <Input
+                    value={editCardData.card_nickname}
+                    onChange={(event) => setEditCardData((prev) => ({ ...prev, card_nickname: event.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase">Limite (opcional)</span>
+                  <Input
+                    type="number"
+                    value={editCardData.credit_limit}
+                    onChange={(event) => setEditCardData((prev) => ({ ...prev, credit_limit: event.target.value }))}
+                    placeholder="5000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase">Dia de vencimento</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={editCardData.billing_due_day}
+                    onChange={(event) => setEditCardData((prev) => ({ ...prev, billing_due_day: event.target.value }))}
+                    placeholder="10"
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase">Tema e cor</span>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {CARD_COLOR_PRESETS.map((preset) => (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() =>
+                          setEditCardData((prev) => ({
+                            ...prev,
+                            card_gradient_start: preset.gradientStart,
+                            card_gradient_end: preset.gradientEnd,
+                            card_color: preset.accent,
+                          }))
+                        }
+                        className={`rounded-2xl border p-3 text-left transition-all ${
+                          editCardData.card_gradient_start === preset.gradientStart &&
+                          editCardData.card_gradient_end === preset.gradientEnd
+                            ? 'border-primary shadow-lg shadow-primary/30'
+                            : 'border-border hover:border-primary/40'
+                        }`}
+                      >
+                        <div
+                          className="h-20 w-full rounded-xl shadow-inner"
+                          style={{
+                            background: `linear-gradient(135deg, ${preset.gradientStart}, ${preset.gradientEnd})`,
+                          }}
+                        />
+                        <p className="mt-2 text-sm font-semibold">{preset.label}</p>
+                        {preset.bank ? (
+                          <p className="text-xs text-muted-foreground">{preset.bank}</p>
+                        ) : null}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingCard(null)} disabled={isUpdatingCard}>
+              Cancelar
+            </Button>
+            <Button onClick={handleUpdateCard} disabled={isUpdatingCard}>
+              {isUpdatingCard ? 'Salvando...' : 'Salvar alterações'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteCardId} onOpenChange={() => setDeleteCardId(null)}>
         <AlertDialogContent>

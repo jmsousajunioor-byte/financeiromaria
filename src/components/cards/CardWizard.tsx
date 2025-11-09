@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { CreditCard, ChevronRight, ChevronLeft } from 'lucide-react';
 import RealisticCard from './RealisticCard';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { CARD_COLOR_PRESETS } from '@/lib/card-presets';
 
 interface CardWizardProps {
   open: boolean;
@@ -17,16 +17,14 @@ interface CardWizardProps {
   onSuccess: () => void;
 }
 
-const gradientPresets = [
-  { name: 'Roxo', start: '#8b5cf6', end: '#c084fc' },
-  { name: 'Rosa', start: '#ec4899', end: '#f472b6' },
-  { name: 'Azul', start: '#3b82f6', end: '#60a5fa' },
-  { name: 'Verde', start: '#10b981', end: '#34d399' },
-  { name: 'Laranja', start: '#f59e0b', end: '#fbbf24' },
-  { name: 'Vermelho', start: '#ef4444', end: '#f87171' },
-  { name: 'Teal', start: '#14b8a6', end: '#2dd4bf' },
-  { name: 'Índigo', start: '#6366f1', end: '#818cf8' },
-];
+const fallbackPreset = {
+  id: 'default',
+  label: 'Roxo Premium',
+  gradientStart: '#4c1d95',
+  gradientEnd: '#7c3aed',
+  accent: '#facc15',
+};
+const defaultPreset = CARD_COLOR_PRESETS[0] ?? fallbackPreset;
 
 const CardWizard = ({ open, onOpenChange, onSuccess }: CardWizardProps) => {
   const { user } = useAuth();
@@ -36,16 +34,18 @@ const CardWizard = ({ open, onOpenChange, onSuccess }: CardWizardProps) => {
     card_brand: 'visa' as 'visa' | 'mastercard' | 'amex' | 'elo',
     cardholder_name: '',
     card_nickname: '',
-    card_gradient_start: gradientPresets[0].start,
-    card_gradient_end: gradientPresets[0].end,
+    card_gradient_start: defaultPreset.gradientStart,
+    card_gradient_end: defaultPreset.gradientEnd,
+    card_color: defaultPreset.accent,
     credit_limit: '',
     expiration_month: '',
     expiration_year: '',
     billing_due_day: '',
   });
+  const [selectedPresetId, setSelectedPresetId] = useState(defaultPreset.id);
   const [isLoading, setIsLoading] = useState(false);
 
-  const totalSteps = 5;
+  const totalSteps = 6;
   const progress = (step / totalSteps) * 100;
 
   const updateCardData = (updates: Partial<typeof cardData>) => {
@@ -80,6 +80,7 @@ const CardWizard = ({ open, onOpenChange, onSuccess }: CardWizardProps) => {
       card_nickname: cardData.card_nickname,
       card_gradient_start: cardData.card_gradient_start,
       card_gradient_end: cardData.card_gradient_end,
+      card_color: cardData.card_color,
       credit_limit: cardData.credit_limit ? parseFloat(cardData.credit_limit) : null,
       expiration_month: cardData.expiration_month ? parseInt(cardData.expiration_month) : null,
       expiration_year: cardData.expiration_year ? parseInt(cardData.expiration_year) : null,
@@ -102,13 +103,15 @@ const CardWizard = ({ open, onOpenChange, onSuccess }: CardWizardProps) => {
       card_brand: 'visa',
       cardholder_name: '',
       card_nickname: '',
-      card_gradient_start: gradientPresets[0].start,
-      card_gradient_end: gradientPresets[0].end,
+      card_gradient_start: defaultPreset.gradientStart,
+      card_gradient_end: defaultPreset.gradientEnd,
+      card_color: defaultPreset.accent,
       credit_limit: '',
       expiration_month: '',
       expiration_year: '',
       billing_due_day: '',
     });
+    setSelectedPresetId(defaultPreset.id);
   };
 
   return (
@@ -119,6 +122,9 @@ const CardWizard = ({ open, onOpenChange, onSuccess }: CardWizardProps) => {
             <CreditCard className="h-5 w-5" />
             Adicionar Novo Cartão
           </DialogTitle>
+          <DialogDescription>
+            Informe os dados principais do cartão para acompanhar limite e fatura.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
@@ -139,6 +145,12 @@ const CardWizard = ({ open, onOpenChange, onSuccess }: CardWizardProps) => {
               holderName={cardData.cardholder_name}
               gradientStart={cardData.card_gradient_start}
               gradientEnd={cardData.card_gradient_end}
+              accentColor={cardData.card_color}
+              creditLimit={
+                cardData.credit_limit ? parseFloat(cardData.credit_limit) : undefined
+              }
+              expirationMonth={cardData.expiration_month ? Number(cardData.expiration_month) : undefined}
+              expirationYear={cardData.expiration_year ? Number(cardData.expiration_year) : undefined}
             />
           </div>
 
@@ -234,38 +246,18 @@ const CardWizard = ({ open, onOpenChange, onSuccess }: CardWizardProps) => {
             {step === 5 && (
               <div className="space-y-4">
                 <div className="text-center mb-4">
-                  <h3 className="text-lg font-semibold mb-2">Cor do Cartão</h3>
+                  <h3 className="text-lg font-semibold mb-2">Informações do Cartão</h3>
                   <p className="text-sm text-muted-foreground">
-                    Escolha um gradiente para seu cartão
+                    Esses dados ajudam a acompanhar o limite e o vencimento da fatura.
                   </p>
                 </div>
-                <div className="grid grid-cols-4 gap-3">
-                  {gradientPresets.map((preset) => (
-                    <button
-                      key={preset.name}
-                      onClick={() => updateCardData({ 
-                        card_gradient_start: preset.start,
-                        card_gradient_end: preset.end,
-                      })}
-                      className={`h-12 rounded-lg transition-all ${
-                        cardData.card_gradient_start === preset.start
-                          ? 'ring-2 ring-primary ring-offset-2'
-                          : 'hover:scale-105'
-                      }`}
-                      style={{
-                        background: `linear-gradient(135deg, ${preset.start}, ${preset.end})`,
-                      }}
-                      title={preset.name}
-                    />
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-4 pt-4">
+                <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <Label htmlFor="limit">Limite (opcional)</Label>
                     <Input
                       id="limit"
                       type="number"
-                      placeholder="5000.00"
+                      placeholder="5000"
                       value={cardData.credit_limit}
                       onChange={(e) => updateCardData({ credit_limit: e.target.value })}
                     />
@@ -282,6 +274,82 @@ const CardWizard = ({ open, onOpenChange, onSuccess }: CardWizardProps) => {
                       onChange={(e) => updateCardData({ billing_due_day: e.target.value })}
                     />
                   </div>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <Label htmlFor="expMonth">Mês de vencimento</Label>
+                    <Input
+                      id="expMonth"
+                      type="number"
+                      placeholder="05"
+                      min="1"
+                      max="12"
+                      value={cardData.expiration_month}
+                      onChange={(e) =>
+                        updateCardData({ expiration_month: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="expYear">Ano de vencimento</Label>
+                    <Input
+                      id="expYear"
+                      type="number"
+                      placeholder="2028"
+                      min="2024"
+                      max="2099"
+                      value={cardData.expiration_year}
+                      onChange={(e) =>
+                        updateCardData({ expiration_year: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {step === 6 && (
+              <div className="space-y-4">
+                <div className="text-center mb-4">
+                  <h3 className="text-lg font-semibold mb-2">Tema do Cartão</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Selecione as cores reais do banco ou um gradiente premium.
+                  </p>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {CARD_COLOR_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPresetId(preset.id);
+                        updateCardData({
+                          card_gradient_start: preset.gradientStart,
+                          card_gradient_end: preset.gradientEnd,
+                          card_color: preset.accent,
+                        });
+                      }}
+                      className={`rounded-2xl border p-3 text-left transition-all ${
+                        selectedPresetId === preset.id
+                          ? 'border-primary shadow-lg shadow-primary/30'
+                          : 'border-border hover:border-primary/40'
+                      }`}
+                    >
+                      <div
+                        className="h-24 w-full rounded-xl shadow-inner"
+                        style={{
+                          background: `linear-gradient(135deg, ${preset.gradientStart}, ${preset.gradientEnd})`,
+                        }}
+                      />
+                      <p className="mt-2 text-sm font-semibold">{preset.label}</p>
+                      {preset.bank ? (
+                        <p className="text-xs text-muted-foreground">{preset.bank}</p>
+                      ) : null}
+                      {preset.description ? (
+                        <p className="text-xs text-muted-foreground">{preset.description}</p>
+                      ) : null}
+                    </button>
+                  ))}
                 </div>
               </div>
             )}

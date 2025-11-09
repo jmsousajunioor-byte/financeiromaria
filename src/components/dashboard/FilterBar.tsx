@@ -6,6 +6,7 @@ import { Calendar, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { Database } from '@/integrations/supabase/types';
+import { getCategoryDisplay } from '@/lib/category-display';
 
 type Category = Database['public']['Tables']['categories']['Row'];
 type CardRow = Database['public']['Tables']['cards']['Row'];
@@ -114,11 +115,14 @@ const FilterBar = ({ onFilterChange, categories, cards, banks }: FilterBarProps)
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas as categorias</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>
-                    {cat.icon} {cat.name}
-                  </SelectItem>
-                ))}
+                {categories.map((cat) => {
+                  const display = getCategoryDisplay(cat);
+                  return (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {display.icon} {display.name}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
